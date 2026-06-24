@@ -135,12 +135,12 @@ export const AskUserQuestionDialog: React.FC<AskUserQuestionDialogProps> = ({
     const trimmedValue = currentCustomInputValue.trim();
 
     if (isMultiSelect) {
-      // Toggle custom input checked state
-      if (!trimmedValue) return;
+      // Toggle custom input checked state, then submit/advance
       setCustomInputChecked((prev) => ({
         ...prev,
-        [currentQuestionIndex]: !prev[currentQuestionIndex],
+        [currentQuestionIndex]: trimmedValue.length > 0,
       }));
+      handleMultiSelectSubmit();
       return;
     }
 
@@ -259,8 +259,9 @@ export const AskUserQuestionDialog: React.FC<AskUserQuestionDialogProps> = ({
 
         // Handle multi-select: Enter advances to next question / submits
         if (isMultiSelect && currentQuestion) {
-          // Custom input is handled by TextInput's onSubmit
+          // Custom input: toggle checked then submit/advance
           if (selectedIndex === currentQuestion.options.length) {
+            handleCustomInputSubmit();
             return;
           }
           handleMultiSelectSubmit();

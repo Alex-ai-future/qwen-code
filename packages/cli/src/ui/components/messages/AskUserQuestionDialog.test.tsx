@@ -404,6 +404,65 @@ describe('<AskUserQuestionDialog />', () => {
       expect(lastFrame()).toContain('[✓]');
       unmount();
     });
+
+    it('auto-selects custom input and submits on Enter after typing', async () => {
+      const onConfirm = vi.fn();
+      const details = createConfirmationDetails({
+        questions: [createSingleQuestion({ multiSelect: true })],
+      });
+
+      const { stdin, unmount } = renderWithProviders(
+        <AskUserQuestionDialog
+          confirmationDetails={details}
+          onConfirm={onConfirm}
+        />,
+      );
+      await wait();
+
+      // Navigate to "Type something..." option (index 3, after 3 predefined options)
+      stdin.write('4');
+      await wait();
+
+      // Type custom text
+      stdin.write('My custom answer');
+      await wait();
+
+      // Press Enter — should auto-select and submit
+      stdin.write('\r');
+      await wait();
+
+      expect(onConfirm).toHaveBeenCalledWith(
+        ToolConfirmationOutcome.ProceedOnce,
+        { answers: { 0: 'My custom answer' } },
+      );
+      unmount();
+    });
+
+    it('does not submit when Enter pressed on empty custom input', async () => {
+      const onConfirm = vi.fn();
+      const details = createConfirmationDetails({
+        questions: [createSingleQuestion({ multiSelect: true })],
+      });
+
+      const { stdin, unmount } = renderWithProviders(
+        <AskUserQuestionDialog
+          confirmationDetails={details}
+          onConfirm={onConfirm}
+        />,
+      );
+      await wait();
+
+      // Navigate to "Type something..." option
+      stdin.write('4');
+      await wait();
+
+      // Press Enter without typing anything — should NOT submit
+      stdin.write('\r');
+      await wait();
+
+      expect(onConfirm).not.toHaveBeenCalled();
+      unmount();
+    });
   });
 
   describe('multiple questions', () => {
