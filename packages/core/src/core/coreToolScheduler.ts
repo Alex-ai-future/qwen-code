@@ -112,14 +112,12 @@ import {
 } from '../tools/modifiable-tool.js';
 import * as Diff from 'diff';
 import levenshtein from 'fast-levenshtein';
-import { getPlanModeSystemReminder } from './prompts.js';
 import { ShellToolInvocation } from '../tools/shell.js';
 import { IdeClient } from '../ide/ide-client.js';
 import {
   getPlanRequiredTeammatePreApprovalMessage,
   isPlanRequiredTeammateAwaitingApproval,
   isPlanRequiredTeammatePreApprovalAllowedTool,
-  shouldUsePlanOnlyReminderInSubagentContext,
 } from '../agents/runtime/subagent-plan-tool-policy.js';
 import { safeSetStatus } from '../telemetry/tracer.js';
 import { SpanStatusCode, type Span } from '@opentelemetry/api';
@@ -2458,22 +2456,19 @@ export class CoreToolScheduler {
                 isEnterPlanModeTool,
               )
             ) {
+              const planModeError = new Error(
+                `Tool blocked by plan mode: "${reqInfo.name}" is not a read-only tool. ` +
+                  `Only read-only tools (read_file, grep_search, glob, list_directory, ` +
+                  `web_fetch, etc.) are allowed in plan mode. Call exit_plan_mode to ` +
+                  `exit plan mode and execute this tool.`,
+              );
               this.setStatusInternal(reqInfo.callId, 'error', {
-                callId: reqInfo.callId,
-                responseParts: convertToFunctionResponse(
-                  reqInfo.name,
-                  reqInfo.callId,
-                  // SDK callers and ordinary subagent-like callers should
-                  // return plans directly. Plan-required teammates have a
-                  // dedicated exit_plan_mode approval path instead.
-                  getPlanModeSystemReminder(
-                    shouldUsePlanOnlyReminderInSubagentContext() ||
-                      this.config.getSdkMode(),
-                  ),
+                ...createErrorResponse(
+                  reqInfo,
+                  planModeError,
+                  ToolErrorType.EXECUTION_DENIED,
                 ),
                 resultDisplay: 'Plan mode blocked a non-read-only tool call.',
-                error: undefined,
-                errorType: undefined,
               });
               setToolSpanFailure(
                 toolSpan,

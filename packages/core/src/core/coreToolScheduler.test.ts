@@ -6233,9 +6233,16 @@ describe('CoreToolScheduler plan mode with ask_user_question', () => {
       expect(completedCalls[0].response.resultDisplay).toBe(
         'Plan mode blocked a non-read-only tool call.',
       );
-      expect(
-        JSON.stringify(completedCalls[0].response.responseParts),
-      ).toContain('exit_plan_mode tool');
+      // Response must use error key (not output) so LLM recognizes it as a failure
+      const responseParts = completedCalls[0].response.responseParts;
+      const responseJson = JSON.stringify(responseParts);
+      expect(responseJson).toContain('"error"');
+      expect(responseJson).toContain('Tool blocked by plan mode');
+      expect(responseJson).toContain('write_file');
+      expect(completedCalls[0].response.error).toBeInstanceOf(Error);
+      expect(completedCalls[0].response.errorType).toBe(
+        ToolErrorType.EXECUTION_DENIED,
+      );
     }
   });
 
@@ -6302,11 +6309,15 @@ describe('CoreToolScheduler plan mode with ask_user_question', () => {
         .calls[0][0] as ToolCall[];
       expect(completedCalls[0].status).toBe('error');
       if (completedCalls[0].status === 'error') {
-        const responseText = JSON.stringify(
-          completedCalls[0].response.responseParts,
+        // All paths (SDK, subagent, teammate) now get the same error format
+        const responseParts = completedCalls[0].response.responseParts;
+        const responseJson = JSON.stringify(responseParts);
+        expect(responseJson).toContain('"error"');
+        expect(responseJson).toContain('Tool blocked by plan mode');
+        expect(completedCalls[0].response.error).toBeInstanceOf(Error);
+        expect(completedCalls[0].response.errorType).toBe(
+          ToolErrorType.EXECUTION_DENIED,
         );
-        expect(responseText).toContain('Present your plan directly');
-        expect(responseText).not.toContain('exit_plan_mode tool');
       }
     },
   );
